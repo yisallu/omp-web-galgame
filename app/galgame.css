@@ -1,0 +1,904 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   OMP WEB — GALGAME / EROGE VISUAL NOVEL ENGINE (`html.galgame`)
+   Inspired by Yuzusoft (Senren*Banka / Riddle Joker / Sabbat of the Witch),
+   Key VisualArts, and KiriKiri ADV Engines.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Hide Galgame-exclusive inline badges in other themes */
+.gal-avatar-medallion,
+.gal-chara-name,
+.gal-voice-tag,
+.gal-next-indicator {
+  display: none;
+}
+
+/* ── 1. GALGAME COLOR & TYPOGRAPHY TOKENS ────────────────────────────────── */
+html.galgame {
+  --bg: #160a1d;
+  --bg-panel: rgba(26, 11, 35, 0.84);
+  --bg-hover: rgba(255, 105, 165, 0.16);
+  --bg-selected: rgba(255, 92, 147, 0.26);
+  --border: rgba(255, 158, 198, 0.34);
+  --border-subtle: rgba(255, 182, 213, 0.18);
+  --text: #fff7fb;
+  --text-muted: #ecc8da;
+  --text-dim: #b884a0;
+  --accent: #ff5c97;
+  --user-bg: rgba(168, 42, 102, 0.45);
+  --thinking-bg: rgba(40, 16, 52, 0.78);
+  --tool-bg: rgba(32, 13, 44, 0.82);
+
+  --gal-gold: #ffe0a3;
+  --gal-gold-soft: rgba(255, 224, 163, 0.48);
+  --gal-pink-bright: #ff69a6;
+  --gal-pink-glow: rgba(255, 92, 151, 0.45);
+  --gal-window-bg: linear-gradient(180deg, rgba(31, 13, 42, 0.88) 0%, rgba(19, 7, 27, 0.94) 100%);
+  --font-ui: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
+  color-scheme: dark;
+}
+
+html.galgame body {
+  background: #14081b;
+  color: var(--text);
+  font-family: var(--font-ui);
+  text-shadow: 0 1px 2px rgba(8, 2, 14, 0.75);
+}
+
+/* ── 2. VISUAL NOVEL STAGE BACKDROP & SAKURA PARTICLES ───────────────────── */
+html.galgame .ap-chat-canvas {
+  position: relative;
+  background: #14081b !important;
+}
+
+html.galgame .gal-stage-root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure ChatWindow container is transparent so the VN stage shines through */
+html.galgame .gal-stage-root > div:not(.gal-stage-backdrop):not(.gal-corner-hud):not(.gal-heroine-stage):not(.gal-quick-bar):not(.gal-cg-exit-overlay) {
+  position: relative;
+  z-index: 10;
+  background: transparent !important;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+/* Guarantee the bottom input bar and Send button are always above any stage decoration */
+html.galgame .sf-chat-input-wrap,
+html.galgame .sf-chat-input-box,
+html.galgame .sf-send-btn {
+  position: relative;
+  z-index: 30;
+  pointer-events: auto;
+}
+
+/* CG Appreciation Mode (HIDE UI) */
+html.galgame.gal-cg-mode .gal-stage-root > div:not(.gal-stage-backdrop):not(.gal-heroine-stage):not(.gal-cg-exit-overlay),
+html.galgame.gal-cg-mode .ap-topbar,
+html.galgame.gal-cg-mode .sidebar-container,
+html.galgame.gal-cg-mode .ap-right-toggle-btn {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.gal-stage-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.gal-bg-layer {
+  position: absolute;
+  inset: -2%;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: gal-kenburns 32s ease-in-out infinite alternate;
+  filter: saturate(1.08) contrast(1.03);
+}
+
+@keyframes gal-kenburns {
+  0% {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  100% {
+    transform: scale(1.045) translate3d(-0.8%, -0.5%, 0);
+  }
+}
+
+.gal-atmosphere-veil {
+  position: absolute;
+  inset: 0;
+  transition: background 0.8s ease;
+}
+
+.gal-atmosphere-veil.is-afterschool {
+  background:
+    radial-gradient(60% 80% at 82% 45%, rgba(255, 182, 193, 0.08) 0%, transparent 70%),
+    linear-gradient(90deg, rgba(20, 8, 28, 0.68) 0%, rgba(24, 10, 34, 0.56) 58%, rgba(18, 7, 26, 0.22) 100%),
+    linear-gradient(180deg, rgba(16, 6, 24, 0.45) 0%, transparent 18%, transparent 75%, rgba(14, 5, 22, 0.72) 100%);
+}
+
+.gal-atmosphere-veil.is-midnight {
+  background:
+    radial-gradient(60% 80% at 82% 45%, rgba(216, 112, 255, 0.10) 0%, transparent 70%),
+    linear-gradient(90deg, rgba(15, 6, 26, 0.72) 0%, rgba(20, 8, 32, 0.60) 58%, rgba(14, 5, 24, 0.24) 100%),
+    linear-gradient(180deg, rgba(12, 4, 20, 0.50) 0%, transparent 18%, transparent 75%, rgba(12, 4, 20, 0.76) 100%);
+}
+
+/* Drifting Sakura Petals */
+.gal-petals-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.gal-petal {
+  position: absolute;
+  top: -24px;
+  background: linear-gradient(135deg, #ffe3ef 0%, #ff8ebc 65%, #ff5c97 100%);
+  border-radius: 150% 0 150% 0;
+  opacity: 0.78;
+  box-shadow: 0 0 8px rgba(255, 130, 180, 0.55);
+  animation-name: gal-petal-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes gal-petal-fall {
+  0% {
+    transform: translate3d(0, -20px, 0) rotate(0deg) rotateX(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.82;
+  }
+  50% {
+    transform: translate3d(var(--petal-drift, 50px), 48vh, 0) rotate(190deg) rotateX(140deg);
+  }
+  88% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate3d(calc(var(--petal-drift, 50px) * 1.6), 104vh, 0) rotate(380deg) rotateX(300deg);
+    opacity: 0;
+  }
+}
+
+/* ── 3. TOP-LEFT GALGAME CALENDAR / ROUTE / AFFECTION HUD ────────────────── */
+.gal-corner-hud {
+  position: absolute;
+  top: 10px;
+  left: 16px;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 14px 8px;
+  background: linear-gradient(135deg, rgba(32, 12, 44, 0.88) 0%, rgba(56, 18, 62, 0.80) 100%);
+  border: 1.5px solid var(--gal-gold-soft);
+  border-left: 4px solid #ff5c97;
+  border-radius: 6px 18px 18px 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 14px rgba(255, 92, 151, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.gal-hud-date-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.gal-hud-date-num {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  color: var(--gal-gold);
+  text-shadow: 0 0 10px rgba(255, 224, 163, 0.45);
+}
+
+.gal-hud-day-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ff5c97 0%, #d9387a 100%);
+  color: #ffffff;
+  letter-spacing: 0.06em;
+}
+
+.gal-hud-time-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1.5px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+
+.gal-hud-time-pill.is-day {
+  background: rgba(255, 182, 119, 0.22);
+  border: 1px solid rgba(255, 210, 150, 0.45);
+  color: #ffe3b8;
+}
+
+.gal-hud-time-pill.is-night {
+  background: rgba(192, 92, 255, 0.26);
+  border: 1px solid rgba(232, 160, 255, 0.55);
+  color: #f6d5ff;
+}
+
+.gal-hud-route-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+}
+
+.gal-hud-route-title {
+  color: #ffd6e8;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.gal-hud-hearts {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--gal-gold);
+  background: rgba(255, 92, 151, 0.18);
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 130, 180, 0.35);
+}
+
+.gal-hearts-icons {
+  color: #ff5c97;
+  letter-spacing: 1px;
+  text-shadow: 0 0 8px rgba(255, 92, 151, 0.75);
+  animation: gal-heart-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes gal-heart-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+/* Push top of chat scroll area down slightly so HUD never overlaps first message */
+html.galgame .gal-stage-root .overflow-y-auto {
+  padding-top: 72px !important;
+}
+
+/* ── 4. HEROINE TACHIE STAGE & SPEECH BUBBLE ─────────────────────────────── */
+.gal-heroine-stage {
+  position: absolute;
+  right: 4px;
+  bottom: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  user-select: none;
+}
+
+.gal-heroine-sprite-wrap {
+  position: relative;
+  pointer-events: auto;
+  cursor: pointer;
+  animation: gal-heroine-breathe 4.2s ease-in-out infinite;
+  transform-origin: bottom center;
+  transition: filter 0.25s ease, transform 0.25s ease;
+  filter: drop-shadow(0 10px 28px rgba(18, 4, 28, 0.72)) drop-shadow(0 0 18px rgba(255, 120, 175, 0.26));
+}
+
+.gal-heroine-sprite-wrap:hover {
+  filter: drop-shadow(0 12px 32px rgba(18, 4, 28, 0.8)) drop-shadow(0 0 26px rgba(255, 105, 180, 0.48));
+}
+
+.gal-heroine-img {
+  display: block;
+  height: min(68vh, 610px);
+  width: auto;
+  max-width: 36vw;
+  object-fit: contain;
+  object-position: bottom center;
+}
+
+@keyframes gal-heroine-breathe {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.007);
+  }
+}
+
+/* Speech Bubble cleanly perched above Heroine's head */
+.gal-heroine-bubble {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 16px;
+  width: 268px;
+  padding: 9px 13px;
+  background: linear-gradient(160deg, rgba(38, 14, 48, 0.94) 0%, rgba(24, 9, 34, 0.96) 100%);
+  border: 1.5px solid var(--gal-gold);
+  border-radius: 16px 16px 16px 16px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 18px rgba(255, 92, 151, 0.32);
+  pointer-events: auto;
+  z-index: 14;
+  animation: gal-bubble-pop 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
+}
+
+.gal-heroine-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -7px;
+  right: 90px;
+  width: 12px;
+  height: 12px;
+  background: rgba(24, 9, 34, 0.96);
+  border-right: 1.5px solid var(--gal-gold);
+  border-bottom: 1.5px solid var(--gal-gold);
+  transform: rotate(45deg);
+}
+
+@keyframes gal-bubble-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.86) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.gal-heroine-bubble-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px dashed rgba(255, 216, 155, 0.32);
+}
+
+.gal-heroine-bubble-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--gal-gold);
+  letter-spacing: 0.03em;
+}
+
+.gal-heroine-bubble-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 3px;
+}
+
+.gal-heroine-bubble-text {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #fff5fa;
+  cursor: pointer;
+}
+
+/* Heart Burst Animation when clicking Heroine */
+.gal-heart-burst {
+  position: absolute;
+  top: 14%;
+  left: 42%;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.gal-heart-burst span {
+  position: absolute;
+  color: #ff5c97;
+  font-size: 20px;
+  text-shadow: 0 0 10px rgba(255, 92, 151, 0.85);
+  opacity: 0;
+  animation: gal-float-heart 1.1s ease-out forwards;
+}
+
+.gal-heart-burst span:nth-child(1) { left: -18px; animation-delay: 0s; }
+.gal-heart-burst span:nth-child(2) { left: 8px; font-size: 24px; color: #ffe0a3; animation-delay: 0.12s; }
+.gal-heart-burst span:nth-child(3) { left: 28px; animation-delay: 0.22s; }
+
+@keyframes gal-float-heart {
+  0% {
+    opacity: 0.95;
+    transform: translateY(0) scale(0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-54px) scale(1.25);
+  }
+}
+
+/* Reserve stage space on wide screens when Heroine Tachie is enabled so she is never covered! */
+@media (min-width: 1120px) {
+  html.galgame.gal-chara-visible .gal-stage-root [style*="max-width: 820px"] {
+    margin-left: 14px !important;
+    margin-right: 336px !important;
+    max-width: calc(100% - 350px) !important;
+  }
+  .gal-heroine-stage {
+    z-index: 12;
+  }
+}
+
+/* On mobile / tablet (< 1120px), heroine tachie stays in background layer and NEVER intercepts touch/click events */
+@media (max-width: 1119px) {
+  .gal-heroine-stage,
+  .gal-heroine-sprite-wrap,
+  .gal-heroine-bubble,
+  .gal-heroine-img {
+    pointer-events: none !important;
+    z-index: 2 !important;
+  }
+  .gal-heroine-stage {
+    right: -10px;
+    bottom: 64px;
+    opacity: 0.38;
+  }
+  .gal-heroine-bubble {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .gal-corner-hud {
+    display: none !important;
+  }
+  .gal-quick-bar {
+    top: 6px;
+    left: 8px;
+    right: 8px;
+    justify-content: center;
+    padding: 4px 6px;
+    gap: 4px;
+    overflow-x: auto;
+  }
+  .gal-qbtn {
+    height: 24px;
+    padding: 0 8px;
+    font-size: 10px;
+  }
+  html.galgame .gal-stage-root .overflow-y-auto {
+    padding-top: 44px !important;
+  }
+}
+
+/* ── 5. GALGAME QUICK SYSTEM BAR (SCENE / VOICE / CHARA / CG MODE) ───────── */
+.gal-quick-bar {
+  position: absolute;
+  top: 10px;
+  right: 48px;
+  z-index: 16;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: linear-gradient(180deg, rgba(34, 13, 46, 0.90) 0%, rgba(20, 7, 29, 0.94) 100%);
+  border: 1.5px solid var(--gal-gold-soft);
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 14px rgba(255, 92, 151, 0.22);
+  backdrop-filter: blur(12px);
+}
+
+.gal-qbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 175, 210, 0.32);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffe8f3;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  white-space: nowrap;
+}
+
+.gal-qbtn:hover {
+  background: linear-gradient(135deg, #ff5c97 0%, #c83776 100%);
+  border-color: var(--gal-gold);
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(255, 92, 151, 0.55);
+  transform: translateY(-1px);
+}
+
+.gal-qbtn.is-active-day {
+  background: linear-gradient(135deg, rgba(255, 115, 168, 0.35) 0%, rgba(196, 56, 118, 0.35) 100%);
+  border-color: rgba(255, 224, 163, 0.65);
+}
+
+.gal-qbtn.is-active-night {
+  background: linear-gradient(135deg, rgba(168, 72, 232, 0.45) 0%, rgba(236, 72, 153, 0.45) 100%);
+  border-color: var(--gal-gold);
+  box-shadow: 0 0 12px rgba(216, 92, 255, 0.45);
+}
+
+.gal-qbtn-dot {
+  color: #ff7eb6;
+  font-size: 11px;
+}
+
+.gal-cg-exit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 28px;
+  cursor: pointer;
+}
+
+.gal-cg-exit-pill {
+  padding: 10px 24px;
+  border-radius: 999px;
+  background: rgba(26, 10, 36, 0.85);
+  border: 1.5px solid var(--gal-gold);
+  color: #fff5fa;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 92, 151, 0.4);
+  backdrop-filter: blur(12px);
+}
+
+/* ── 6. ASSISTANT MESSAGES = AUTHENTIC GALGAME ADV DIALOGUE BOX ──────────── */
+html.galgame .gal-assistant-turn {
+  position: relative;
+  margin-bottom: 22px !important;
+}
+
+/* Character Nameplate Ribbon perched on top of the ADV frame */
+html.galgame .gal-nameplate {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px !important;
+  margin-bottom: -2px !important;
+  margin-left: 10px;
+  padding: 5px 16px 5px 8px;
+  background: linear-gradient(90deg, #ff4d8d 0%, #c93878 52%, rgba(58, 18, 66, 0.95) 100%);
+  border: 1.5px solid var(--gal-gold);
+  border-radius: 18px 20px 6px 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), 0 0 14px rgba(255, 92, 151, 0.35);
+  color: #ffffff !important;
+  position: relative;
+  z-index: 3;
+}
+
+html.galgame .gal-avatar-medallion {
+  display: inline-block !important;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-image: url('/galgame/heroine-avatar.png');
+  background-size: cover;
+  background-position: center;
+  border: 1.5px solid var(--gal-gold);
+  box-shadow: 0 0 8px rgba(255, 224, 163, 0.6);
+  flex-shrink: 0;
+}
+
+html.galgame .gal-chara-name {
+  display: inline-block !important;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff9fc;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 3px rgba(60, 8, 36, 0.9);
+}
+
+html.galgame .gal-nameplate .ap-sparkle-icon {
+  color: var(--gal-gold) !important;
+  stroke: var(--gal-gold) !important;
+}
+
+html.galgame .gal-model-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gal-gold);
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(20, 6, 28, 0.45);
+  border: 1px solid rgba(255, 224, 163, 0.35);
+}
+
+html.galgame .gal-voice-tag {
+  display: inline-block !important;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffd9ec;
+  letter-spacing: 0.05em;
+  opacity: 0.92;
+}
+
+/* The ADV Dialogue Window Frame */
+html.galgame .gal-dialogue-body {
+  position: relative;
+  padding: 18px 22px 20px !important;
+  background: var(--gal-window-bg);
+  border: 1.5px solid rgba(255, 148, 194, 0.62);
+  outline: 1px solid rgba(255, 224, 163, 0.34);
+  outline-offset: -5px;
+  border-radius: 14px 18px 18px 18px;
+  box-shadow:
+    0 14px 36px rgba(6, 1, 12, 0.72),
+    0 0 24px rgba(255, 92, 151, 0.16),
+    inset 0 1px 0 rgba(255, 230, 242, 0.25);
+  backdrop-filter: blur(16px);
+}
+
+/* Corner Filigree Ornaments on ADV Dialogue Frame */
+html.galgame .gal-dialogue-body::before {
+  content: "❖";
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 11px;
+  color: var(--gal-gold);
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+/* Bouncing Galgame Next-Page Cursor (▼ ♥) */
+html.galgame .gal-next-indicator {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 3px;
+  position: absolute;
+  right: 14px;
+  bottom: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ff69a6;
+  text-shadow: 0 0 8px rgba(255, 105, 166, 0.8);
+  animation: gal-cursor-bounce 1.1s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes gal-cursor-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+}
+
+/* ── 7. USER MESSAGES = GALGAME ROUTE CHOICE BANNER (選択肢) ──────────────── */
+html.galgame .sf-user-bubble {
+  position: relative;
+  background: linear-gradient(90deg, rgba(64, 18, 66, 0.92) 0%, rgba(196, 48, 114, 0.88) 50%, rgba(64, 18, 66, 0.92) 100%) !important;
+  border: 1.5px solid var(--gal-gold) !important;
+  border-radius: 999px !important;
+  padding: 12px 26px !important;
+  color: #fff9fc !important;
+  font-weight: 600;
+  box-shadow:
+    0 8px 26px rgba(10, 2, 18, 0.62),
+    0 0 18px rgba(255, 92, 151, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+  backdrop-filter: blur(12px);
+}
+
+html.galgame .sf-user-bubble::before {
+  content: "◆ 選択肢 // CHOICE ♥";
+  position: absolute;
+  top: -10px;
+  right: 18px;
+  padding: 1px 9px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #2a0a22;
+  background: linear-gradient(90deg, #ffe0a3 0%, #ffb6d5 100%);
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  text-shadow: none;
+}
+
+/* ── 8. PROCESS DETAILS PILL & TOOL CARDS = SCENARIO MONOLOGUE ───────────── */
+html.galgame .ap-process-pill {
+  padding: 5px 14px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(90deg, rgba(52, 18, 64, 0.86) 0%, rgba(88, 26, 78, 0.78) 100%) !important;
+  border: 1px solid rgba(255, 224, 163, 0.45) !important;
+  color: var(--gal-gold) !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+}
+
+html.galgame .ap-process-pill:hover {
+  border-color: #ff69a6 !important;
+  box-shadow: 0 0 14px rgba(255, 92, 151, 0.38);
+}
+
+html.galgame .ap-process-body {
+  padding-left: 14px;
+  border-left: 2px dashed rgba(255, 148, 194, 0.45);
+}
+
+html.galgame .sf-tool-block,
+html.galgame .sf-thinking-block,
+html.galgame .sf-bash-block {
+  background: rgba(24, 9, 34, 0.84) !important;
+  border: 1px solid rgba(255, 158, 198, 0.35) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(12px);
+}
+
+/* ── 9. BOTTOM INPUT BOX = ADV COMMAND & DIALOGUE COMPOSER ───────────────── */
+html.galgame .sf-chat-input-box {
+  position: relative;
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, rgba(34, 13, 46, 0.92) 0%, rgba(20, 7, 28, 0.96) 100%) !important;
+  border: 1.5px solid rgba(255, 148, 194, 0.68) !important;
+  outline: 1px solid rgba(255, 224, 163, 0.38);
+  outline-offset: -5px;
+  box-shadow:
+    0 16px 40px rgba(5, 1, 10, 0.78),
+    0 0 24px rgba(255, 92, 151, 0.24),
+    inset 0 1px 0 rgba(255, 230, 242, 0.25) !important;
+  backdrop-filter: blur(18px);
+}
+
+html.galgame .sf-chat-input-box:focus-within {
+  border-color: var(--gal-gold) !important;
+  box-shadow:
+    0 0 0 3px rgba(255, 92, 151, 0.28),
+    0 16px 40px rgba(5, 1, 10, 0.82),
+    0 0 28px rgba(255, 92, 151, 0.42) !important;
+}
+
+html.galgame .sf-send-btn {
+  border-radius: 999px !important;
+  padding: 0 18px !important;
+  height: 34px !important;
+  background: linear-gradient(135deg, #ff5c97 0%, #d43879 55%, #9b2c7a 100%) !important;
+  border: 1.5px solid var(--gal-gold) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em;
+  box-shadow: 0 4px 14px rgba(255, 92, 151, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+html.galgame .sf-send-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+html.galgame .ap-input-chip {
+  border-radius: 999px !important;
+  background: rgba(34, 13, 46, 0.85) !important;
+  border: 1px solid rgba(255, 175, 210, 0.35) !important;
+  color: #ffd9ec !important;
+  backdrop-filter: blur(8px);
+}
+
+html.galgame .ap-input-chip:hover {
+  border-color: var(--gal-gold) !important;
+  color: #ffffff !important;
+}
+
+/* ── 10. SIDEBAR = GALGAME SAVE / LOAD & MEMORY SLOTS ────────────────────── */
+html.galgame .sidebar-container {
+  background: linear-gradient(180deg, rgba(26, 10, 36, 0.94) 0%, rgba(18, 7, 26, 0.96) 100%) !important;
+  border-right: 1.5px solid rgba(255, 158, 198, 0.38) !important;
+  box-shadow: 6px 0 28px rgba(0, 0, 0, 0.45);
+  counter-reset: gal-save-slot;
+}
+
+html.galgame .ap-new-session-btn {
+  background: linear-gradient(135deg, #ff5c97 0%, #c83776 100%) !important;
+  border: 1.5px solid var(--gal-gold) !important;
+  color: #ffffff !important;
+  border-radius: 999px !important;
+  font-weight: 800 !important;
+  box-shadow: 0 3px 12px rgba(255, 92, 151, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+html.galgame .ap-session-item {
+  counter-increment: gal-save-slot;
+  position: relative;
+  margin: 4px 8px !important;
+  padding-top: 18px !important;
+  border-radius: 12px !important;
+  background: rgba(42, 16, 56, 0.55);
+  border: 1px solid rgba(255, 158, 198, 0.22);
+  transition: all 0.16s ease !important;
+}
+
+html.galgame .ap-session-item::before {
+  content: "SAVE DATA " counter(gal-save-slot, decimal-leading-zero);
+  position: absolute;
+  top: 4px;
+  left: 10px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--gal-gold);
+  opacity: 0.85;
+}
+
+html.galgame .ap-session-item:hover {
+  background: rgba(255, 92, 151, 0.16) !important;
+  border-color: rgba(255, 158, 198, 0.48);
+}
+
+html.galgame .ap-session-item.is-selected {
+  background: linear-gradient(135deg, rgba(255, 92, 151, 0.28) 0%, rgba(124, 58, 237, 0.24) 100%) !important;
+  border: 1.5px solid var(--gal-gold) !important;
+  box-shadow: 0 4px 16px rgba(255, 92, 151, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+html.galgame .ap-session-item.is-selected::before {
+  content: "▶ PLAYING · DATA " counter(gal-save-slot, decimal-leading-zero) " ♥";
+  color: #ff85b8;
+}
+
+html.galgame .ap-sidebar-dock {
+  margin: 6px 8px 8px;
+  padding: 5px !important;
+  background: rgba(38, 14, 52, 0.78);
+  border: 1px solid rgba(255, 224, 163, 0.32);
+  border-radius: 12px;
+}
+
+/* ── 11. TOPBAR = GALGAME SYSTEM HEADER ──────────────────────────────────── */
+html.galgame .ap-topbar {
+  height: calc(42px + env(safe-area-inset-top)) !important;
+  background: linear-gradient(90deg, rgba(24, 9, 34, 0.90) 0%, rgba(40, 14, 52, 0.86) 50%, rgba(24, 9, 34, 0.90) 100%) !important;
+  border-bottom: 1.5px solid rgba(255, 158, 198, 0.36) !important;
+  backdrop-filter: blur(16px);
+}
+
+html.galgame .ap-telemetry-pill {
+  height: 28px !important;
+  margin-top: auto;
+  margin-bottom: auto;
+  border-radius: 999px;
+  background: rgba(255, 92, 151, 0.14) !important;
+  border: 1px solid rgba(255, 224, 163, 0.38) !important;
+}
+
+/* ── 12. MARKDOWN & CODE BLOCKS INSIDE ADV DIALOGUE WINDOWS ──────────────── */
+html.galgame .markdown-body {
+  font-size: 14.5px;
+  line-height: 1.78;
+  color: #fff6fa;
+}
+
+html.galgame .markdown-body :not(pre) > code {
+  background: rgba(255, 92, 151, 0.20);
+  border: 1px solid rgba(255, 182, 213, 0.38);
+  color: #ffe3f1;
+  border-radius: 6px;
+  padding: 1.5px 6px;
+}
+
+html.galgame .gal-placeholder-card {
+  background: linear-gradient(180deg, rgba(34, 13, 46, 0.90) 0%, rgba(20, 7, 28, 0.95) 100%) !important;
+  border: 2px solid var(--gal-gold) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 30px rgba(255, 92, 151, 0.32) !important;
+  backdrop-filter: blur(16px);
+}
