@@ -34,6 +34,10 @@ cp -f "$TMP_DIR/repo/components/AppShell.tsx" "$TARGET_DIR/components/AppShell.t
 cp -f "$TMP_DIR/repo/components/SessionSidebar.tsx" "$TARGET_DIR/components/SessionSidebar.tsx"
 cp -f "$TMP_DIR/repo/components/MessageView.tsx" "$TARGET_DIR/components/MessageView.tsx"
 cp -f "$TMP_DIR/repo/components/ChatInput.tsx" "$TARGET_DIR/components/ChatInput.tsx"
+cp -f "$TMP_DIR/repo/components/ChatWindow.tsx" "$TARGET_DIR/components/ChatWindow.tsx"
+cp -f "$TMP_DIR/repo/hooks/useAgentSession.ts" "$TARGET_DIR/hooks/useAgentSession.ts"
+cp -f "$TMP_DIR/repo/lib/rpc-manager.ts" "$TARGET_DIR/lib/rpc-manager.ts"
+cp -f "$TMP_DIR/repo/app/api/agent/[id]/events/route.ts" "$TARGET_DIR/app/api/agent/[id]/events/route.ts"
 cp -f "$TMP_DIR/repo/app/layout.tsx" "$TARGET_DIR/app/layout.tsx"
 
 echo "✨ Galgame theme installed! Now run inside $TARGET_DIR:"
