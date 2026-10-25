@@ -622,7 +622,7 @@ function BlockView({ block, toolResults, isStreaming, streamingDuration, toolCal
     return <TextBlock block={block as TextContent} isStreaming={isStreaming} cwd={cwd} onOpenFile={onOpenFile} />;
   }
   if (block.type === "thinking") {
-    return <ThinkingBlock block={block as ThinkingContent} duration={streamingDuration} sessionId={sessionId} entryId={entryId} blockIndex={blockIndex} />;
+    return <ThinkingBlock block={block as ThinkingContent} isStreaming={isStreaming} duration={streamingDuration} sessionId={sessionId} entryId={entryId} blockIndex={blockIndex} />;
   }
   if (block.type === "toolCall") {
     const tc = block as ToolCallContent;
@@ -637,8 +637,9 @@ function TextBlock({ block, isStreaming, cwd, onOpenFile }: { block: TextContent
   return <MarkdownBody isStreaming={isStreaming} cwd={cwd} onOpenFile={onOpenFile}>{block.text}</MarkdownBody>;
 }
 
-function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex }: {
+function ThinkingBlock({ block, isStreaming, duration, sessionId, entryId, blockIndex }: {
   block: ThinkingContent;
+  isStreaming?: boolean;
   duration?: number;
   sessionId?: string;
   entryId?: string;
@@ -649,6 +650,10 @@ function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex }: {
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isActivelyThinking = Boolean(isStreaming && duration === undefined && !block.deferred && block.thinking);
+  const livePreview = isActivelyThinking
+    ? block.thinking.trim().split("\n").filter(Boolean).slice(-3).join("\n")
+    : null;
 
   const toggle = async () => {
     const nextExpanded = !expanded;
@@ -696,12 +701,12 @@ function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex }: {
           textAlign: "left",
         }}
       >
-         <span>{t("i18n.thinking")}</span>
+         <span>{t("i18n.thinking")}{isActivelyThinking ? "…" : ""}</span>
         {duration !== undefined && (
           <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-dim)", fontVariantNumeric: "tabular-nums" }}>{duration}s</span>
         )}
       </button>
-      {expanded && (
+      {(expanded || livePreview) && (
         <div
           style={{
             padding: "8px 10px",
@@ -711,9 +716,11 @@ function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex }: {
             whiteSpace: "pre-wrap",
             background: "var(--bg-panel)",
             borderTop: "1px solid var(--border)",
+            maxHeight: !expanded && livePreview ? 84 : undefined,
+            overflow: !expanded && livePreview ? "hidden" : undefined,
           }}
         >
-           {loading ? t("i18n.loadingThinking") : error ?? (block.deferred ? content : block.thinking)}
+           {loading ? t("i18n.loadingThinking") : error ?? (expanded ? (block.deferred ? content : block.thinking) : livePreview)}
         </div>
       )}
     </div>

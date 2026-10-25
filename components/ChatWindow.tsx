@@ -612,6 +612,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
 
                 if (finalAssistantIdx === -1) {
                   for (let renderIdx = userIdx; renderIdx < endIdx; renderIdx++) {
+                    if (messages[renderIdx]?.role === "toolResult") continue;
                     rendered.push(renderMessage(renderIdx));
                   }
                   idx = endIdx;
@@ -621,6 +622,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
                 const isLiveTail = (sessionBusy || streamState.isStreaming) && endIdx === messages.length && userIdx === lastAnchorIdx;
                 if (isLiveTail) {
                   for (let renderIdx = userIdx; renderIdx < endIdx; renderIdx++) {
+                    if (messages[renderIdx]?.role === "toolResult") continue;
                     rendered.push(renderMessage(renderIdx));
                   }
                   idx = endIdx;
@@ -717,10 +719,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
               />
             )}
 
-            {agentRunning && (
-              <div style={{ height: scrollContainerRef.current ? scrollContainerRef.current.clientHeight : "80vh" }} />
-            )}
-
+            <div style={{ height: 16 }} />
             <div ref={messagesEndRef} />
             </div>
           </div>

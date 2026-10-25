@@ -155,6 +155,7 @@ export class AgentSessionWrapper {
   private onDestroyCallback: (() => void) | null = null;
   private shutdownPromise: Promise<void> | null = null;
   private _alive = true;
+  private latestStreamEvent: AgentEvent | null = null;
 
   constructor(public readonly inner: AgentSessionLike) {}
 
@@ -180,6 +181,15 @@ export class AgentSessionWrapper {
 
   start(): void {
     this.unsubscribe = this.inner.subscribe((event: AgentEvent) => {
+      if (event.type === "message_start" || event.type === "message_update") {
+        this.latestStreamEvent = event;
+      } else if (
+        event.type === "message_end"
+        || event.type === "agent_end"
+        || event.type === "agent_settled"
+      ) {
+        this.latestStreamEvent = null;
+      }
       if (event.type === "agent_end") {
         invalidateSessionListCache();
       }
@@ -291,7 +301,16 @@ export class AgentSessionWrapper {
   }
 
   private emit(event: AgentEvent): void {
-    for (const l of this.listeners) l(event);
+    if (event.type === "prompt_done") {
+      this.latestStreamEvent = null;
+    }
+    for (const l of [...this.listeners]) {
+      try {
+        l(event);
+      } catch {
+        // Ignore errors from closed/stale listener streams so other active listeners still receive events
+      }
+    }
   }
 
   private resetIdleTimer(): void {
@@ -329,6 +348,16 @@ export class AgentSessionWrapper {
 
   onEvent(listener: EventListener): () => void {
     this.listeners.push(listener);
+    if (this.isRunning()) {
+      try {
+        listener({ type: "agent_start" });
+        if (this.latestStreamEvent) {
+          listener(this.latestStreamEvent);
+        }
+      } catch {
+        // ignore listener replay error
+      }
+    }
     for (const event of this.pendingUiRequests.values()) listener(event);
     return () => {
       const i = this.listeners.indexOf(listener);

@@ -160,7 +160,7 @@ const PROMPT_SETTLE_INITIAL_DELAY_MS = 800;
 const PROMPT_SETTLE_POLL_MS = 600;
 const PROMPT_SETTLE_MAX_MS = 20_000;
 const EVENT_STREAM_IDLE_GRACE_MS = 30_000;
-const AGENT_STATE_RECONCILE_MS = 15_000;
+const AGENT_STATE_RECONCILE_MS = 3_000;
 const BASH_STATE_RECONCILE_MS = 1_000;
 // Cold-starting an idle-evicted agent session (extensions, model runtime) can take
 // several seconds, so allow enough time before treating the stream as failed.
@@ -398,6 +398,9 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const lastUserMsgRef = useRef<HTMLDivElement | null>(null);
   const pendingScrollToUserRef = useRef(false);
   const completionScrollAllowedRef = useRef(true);
+  const stickToBottomRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
+  const lastSseEventAtRef = useRef(0);
   const executeBashRef = useRef<(command: string, excludeFromContext: boolean) => Promise<void> | undefined>(undefined);
   const userScrollIntentUntilRef = useRef(0);
   const ignoreProgrammaticScrollUntilRef = useRef(0);
@@ -495,7 +498,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     try {
       if (showLoading) setLoading(true);
       const params = new URLSearchParams({ deferThinking: "1", deferMedia: "1" });
-      const res = await fetch(`/api/sessions/${encodeURIComponent(sid)}?${params}`);
+      const res = await fetch(`/api/sessions/${encodeURIComponent(sid)}?${params}`, { cache: "no-store" });
       if (res.status === 404) {
         if (showLoading) {
           setData(null);
@@ -510,7 +513,21 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       if (sessionIdRef.current !== sid) return null;
       setData(d);
       setActiveLeafId(d.leafId);
-      setMessages(d.context.messages);
+      setMessages((prev) => {
+        const next = d.context.messages;
+        if (agentRunningRef.current && next.length < prev.length) {
+          return prev;
+        }
+        const optKey = optimisticUserMessageKeyRef.current;
+        if (agentRunningRef.current && optKey && prev.length > 0) {
+          const lastPrev = prev[prev.length - 1];
+          const hasOptInNext = next.some((m) => m.role === "user" && userMessageKey(m) === optKey);
+          if (!hasOptInNext && lastPrev?.role === "user" && userMessageKey(lastPrev) === optKey) {
+            return [...next, lastPrev];
+          }
+        }
+        return next;
+      });
       setEntryIds(d.context.entryIds ?? []);
       setCurrentModelOverride(null);
       setError(null);
@@ -523,7 +540,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       if (!includeState) return null;
 
       try {
-        const stateRes = await fetch(`/api/sessions/${encodeURIComponent(sid)}/state`);
+        const stateRes = await fetch(`/api/sessions/${encodeURIComponent(sid)}/state`, { cache: "no-store" });
         if (!stateRes.ok) throw new Error(`HTTP ${stateRes.status}`);
         const agentState = await stateRes.json() as { running: boolean; state?: AgentStateResponse };
         if (sessionIdRef.current !== sid) return null;
@@ -707,6 +724,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
       es.onmessage = (e) => {
         try {
+          lastSseEventAtRef.current = Date.now();
           const event = JSON.parse(e.data) as AgentEvent;
           if (event.type === "connected") settle("connected");
           handleAgentEventRef.current?.(event);
@@ -1011,15 +1029,12 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   }, [loadSession]);
 
   // Reconcile client streaming state with the server. When SSE events are
-  // missed (network drop, mobile tab backgrounded, half-open connection),
-  // agent_end never arrives and the UI stays in streaming state forever.
-  // If the server reports idle while we still think it's running, finish
-  // through the same settlement path used by non-streaming prompts.
+  // missed (network drop, mobile tab backgrounded, half-open connection, or
+  // session started on another device/tab), keep the UI and messages synced.
   const reconcileAgentState = useCallback(async (sid: string) => {
-    if (!agentRunningRef.current) return;
     const runId = promptRunIdRef.current;
     try {
-      const res = await fetch(`/api/agent/${encodeURIComponent(sid)}`);
+      const res = await fetch(`/api/agent/${encodeURIComponent(sid)}`, { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json() as { running?: boolean; state?: AgentStateResponse };
       // A slow response can straddle a run boundary (previous run finished
@@ -1027,14 +1042,38 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       // flight) — everything in it is stale, drop it.
       if (promptRunIdRef.current !== runId) return;
       const state = data.state;
-      // Mirror compaction state unconditionally: a missed compaction_end
-      // would otherwise leave the "Stop compaction" UI stuck. No state
-      // (wrapper destroyed) means nothing is compacting.
       setIsCompacting(state?.isCompacting ?? false);
       setQueuedMessages(normalizeQueuedMessages(state?.queuedMessages));
-      const busy = data.running && state
-        && (state.isStreaming || state.isPromptRunning || state.isCompacting);
-      if (busy || !agentRunningRef.current) return;
+      const busy = Boolean(data.running && state
+        && (state.isStreaming || state.isPromptRunning || state.isCompacting));
+
+      if (busy) {
+        if (!agentRunningRef.current) {
+          // Session started running externally (another tab/device) or resumed
+          sdkAgentActiveRef.current = Boolean(state?.isStreaming);
+          rpcPromptPendingRef.current = Boolean(state?.isPromptRunning);
+          agentRunningRef.current = true;
+          setAgentRunning(true);
+          setAgentPhase(state?.isStreaming ? { kind: "waiting_model" } : { kind: "running_command" });
+          dispatch({ type: "start" });
+          void connectEvents(sid);
+          await loadSession(sid);
+        } else {
+          // Ensure SSE connection is open
+          const currentEs = eventSourceRef.current;
+          if (!currentEs || eventSourceSessionIdRef.current !== sid || currentEs.readyState === EventSource.CLOSED) {
+            void connectEvents(sid);
+          }
+          // If SSE hasn't delivered any events recently (e.g., proxy buffering or tool loop),
+          // pull the latest completed messages/tool calls from disk so the chat never freezes.
+          if (Date.now() - lastSseEventAtRef.current > 3_000) {
+            await loadSession(sid);
+          }
+        }
+        return;
+      }
+
+      if (!agentRunningRef.current) return;
       if (state) {
         if (state.contextUsage !== undefined) setContextUsage(state.contextUsage ?? null);
         if (state.systemPrompt !== undefined) setSystemPrompt(state.systemPrompt ?? null);
@@ -1045,16 +1084,13 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     } catch {
       // Network still down — the next poll / visibility / online tick retries.
     }
-  }, [finishPromptWithoutStream]);
+  }, [connectEvents, finishPromptWithoutStream, loadSession]);
 
-  // Recovery net for missed SSE events: while the agent is running, verify
-  // against the server periodically and whenever the tab returns to the
-  // foreground or the network comes back.
+  // Recovery net for missed SSE events & multi-device sync: verify against
+  // the server periodically and whenever the tab returns to the foreground.
   useEffect(() => {
-    if (!agentRunning) return;
     const reconcile = () => {
-      // Read the ref on every tick: for brand-new sessions the id is
-      // assigned only after ensure_session returns.
+      if (typeof document !== "undefined" && document.visibilityState !== "visible" && !agentRunningRef.current) return;
       const sid = sessionIdRef.current;
       if (sid) void reconcileAgentState(sid);
     };
@@ -1292,6 +1328,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     dispatch({ type: "start" });
     pendingScrollToUserRef.current = true;
     completionScrollAllowedRef.current = true;
+    stickToBottomRef.current = true;
 
     const piImages = images?.map((img) => ({ type: "image" as const, data: img.data, mimeType: img.mimeType }));
     let sentSessionId: string | null = null;
@@ -1838,17 +1875,22 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     ignoreProgrammaticScrollUntilRef.current = Date.now() + PROGRAMMATIC_SCROLL_IGNORE_MS;
+    const container = scrollContainerRef.current;
+    if (container) {
+      if (behavior === "instant") {
+        container.scrollTop = container.scrollHeight;
+      } else {
+        container.scrollTo({ top: container.scrollHeight, behavior });
+      }
+      lastScrollTopRef.current = container.scrollTop;
+      return;
+    }
     messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
   const scrollUserMsgToTop = useCallback(() => {
-    const container = scrollContainerRef.current;
-    const el = lastUserMsgRef.current;
-    if (!container || !el) return;
-    const elAbsTop = el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
-    ignoreProgrammaticScrollUntilRef.current = Date.now() + PROGRAMMATIC_SCROLL_IGNORE_MS;
-    container.scrollTo({ top: elAbsTop - 16, behavior: "smooth" });
-  }, []);
+    scrollToBottom("smooth");
+  }, [scrollToBottom]);
 
   const markUserScrollIntent = useCallback((event: Event) => {
     if (event instanceof KeyboardEvent) {
@@ -1859,10 +1901,24 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   }, []);
 
   const handleScrollPositionChange = useCallback(() => {
-    if (!agentRunningRef.current) return;
-    if (Date.now() < ignoreProgrammaticScrollUntilRef.current) return;
-    if (Date.now() > userScrollIntentUntilRef.current) return;
-    completionScrollAllowedRef.current = false;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const currentTop = container.scrollTop;
+    const distanceFromBottom = container.scrollHeight - currentTop - container.clientHeight;
+
+    if (Date.now() < ignoreProgrammaticScrollUntilRef.current) {
+      lastScrollTopRef.current = currentTop;
+      return;
+    }
+
+    if (distanceFromBottom <= 140) {
+      stickToBottomRef.current = true;
+      completionScrollAllowedRef.current = true;
+    } else if (currentTop < lastScrollTopRef.current - 6 && Date.now() <= userScrollIntentUntilRef.current) {
+      stickToBottomRef.current = false;
+      completionScrollAllowedRef.current = false;
+    }
+    lastScrollTopRef.current = currentTop;
   }, []);
 
   // Load session on mount
@@ -1942,18 +1998,30 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   useEffect(() => {
     if (messages.length > 0) {
-      if (pendingScrollToUserRef.current) {
-        pendingScrollToUserRef.current = false;
+      if (!initialScrollDoneRef.current) {
         initialScrollDoneRef.current = true;
-        scrollUserMsgToTop();
-      } else if (!initialScrollDoneRef.current) {
-        initialScrollDoneRef.current = true;
+        stickToBottomRef.current = true;
         scrollToBottom("instant");
-      } else if (!agentRunningRef.current && completionScrollAllowedRef.current) {
+      } else if (pendingScrollToUserRef.current) {
+        pendingScrollToUserRef.current = false;
+        stickToBottomRef.current = true;
         scrollToBottom("smooth");
+      } else if (stickToBottomRef.current || (!agentRunningRef.current && completionScrollAllowedRef.current)) {
+        scrollToBottom(agentRunningRef.current ? "instant" : "smooth");
       }
     }
-  }, [messages.length, agentRunning, scrollToBottom, scrollUserMsgToTop]);
+  }, [messages.length, agentRunning, agentPhase, scrollToBottom]);
+
+  // Keep live streaming tokens in view in real time when stuck to bottom
+  useEffect(() => {
+    if (!streamState.streamingMessage || !stickToBottomRef.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (stickToBottomRef.current) {
+        scrollToBottom("instant");
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [streamState.streamingMessage, scrollToBottom]);
 
   // Load model list
   useEffect(() => {

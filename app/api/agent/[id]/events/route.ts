@@ -37,13 +37,44 @@ export async function GET(
     }
   }
 
+  let cleanupStream: (() => void) | null = null;
+
   const stream = new ReadableStream({
     start(controller) {
       const encoder = new TextEncoder();
-      const encode = (data: unknown) => {
-        const text = `data: ${JSON.stringify(data)}\n\n`;
-        controller.enqueue(encoder.encode(text));
+      let closed = false;
+
+      // Cleanup when client disconnects
+      const cleanup = () => {
+        if (closed) return;
+        closed = true;
+        clearInterval(heartbeat);
+        unsubscribe();
+        try {
+          controller.close();
+        } catch {
+          // controller already closed
+        }
       };
+      cleanupStream = cleanup;
+
+      const encode = (data: unknown) => {
+        if (closed) return;
+        try {
+          const text = `data: ${JSON.stringify(data)}\n\n`;
+          controller.enqueue(encoder.encode(text));
+        } catch {
+          cleanup();
+        }
+      };
+
+      // Send 2KB comment preamble to force reverse proxies / Cloudflare to flush immediately
+      try {
+        controller.enqueue(encoder.encode(`: ${" ".repeat(2048)}\n\n`));
+      } catch {
+        cleanup();
+        return;
+      }
 
       // Send initial connected event
       encode({ type: "connected", sessionId: id });
@@ -53,32 +84,31 @@ export async function GET(
         if (clientEvent) encode(clientEvent);
       });
 
-      // Heartbeat every 30s to prevent server/proxy timeout (Next.js default ~120-150s)
+      // Heartbeat every 15s to prevent proxy buffering / idle timeouts
       const heartbeat = setInterval(() => {
+        if (closed) return;
         try {
           controller.enqueue(encoder.encode(":\n\n"));
         } catch {
-          // controller already closed
+          cleanup();
         }
-      }, 30_000);
-
-      // Cleanup when client disconnects
-      const cleanup = () => {
-        clearInterval(heartbeat);
-        unsubscribe();
-        controller.close();
-      };
+      }, 15_000);
 
       // Detect client disconnect via abort signal
       req.signal?.addEventListener("abort", cleanup);
+    },
+    cancel() {
+      cleanupStream?.();
     },
   });
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+      "Content-Encoding": "none",
     },
   });
 }
