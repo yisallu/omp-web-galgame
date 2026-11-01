@@ -93,32 +93,19 @@ html.galgame.gal-cg-mode .ap-right-toggle-btn {
 
 .gal-bg-layer {
   position: absolute;
-  inset: -2%;
+  inset: 0;
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
-  will-change: transform, opacity;
   transition: opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1);
-  animation: gal-kenburns 32s ease-in-out infinite alternate;
 }
 
 .gal-bg-layer.is-active {
   opacity: 1;
-  animation-play-state: running;
 }
 
 .gal-bg-layer.is-inactive {
   opacity: 0;
-  animation-play-state: paused;
-}
-
-@keyframes gal-kenburns {
-  0% {
-    transform: scale(1) translate3d(0, 0, 0);
-  }
-  100% {
-    transform: scale(1.045) translate3d(-0.8%, -0.5%, 0);
-  }
 }
 
 .gal-atmosphere-veil {
@@ -141,7 +128,7 @@ html.galgame.gal-cg-mode .ap-right-toggle-btn {
     linear-gradient(180deg, rgba(12, 4, 20, 0.50) 0%, transparent 18%, transparent 75%, rgba(12, 4, 20, 0.76) 100%);
 }
 
-/* Drifting Sakura Petals — GPU compositor isolated (no 3D plane-splitting or per-petal blur) */
+/* Drifting Sakura Petals — phase-locked on a unified 250ms anime step clock so all petals repaint in a single pass */
 .gal-petals-container {
   position: absolute;
   inset: 0;
@@ -155,30 +142,18 @@ html.galgame.gal-cg-mode .ap-right-toggle-btn {
   top: -24px;
   background: linear-gradient(135deg, #ffe3ef 0%, #ff8ebc 65%, #ff5c97 100%);
   border-radius: 150% 0 150% 0;
-  opacity: 0.8;
-  will-change: transform, opacity;
+  opacity: 0.82;
   animation-name: gal-petal-fall;
-  animation-timing-function: linear;
+  animation-timing-function: steps(48, end);
   animation-iteration-count: infinite;
 }
 
 @keyframes gal-petal-fall {
   0% {
-    transform: translate3d(0, -20px, 0) rotate(0deg);
-    opacity: 0;
-  }
-  12% {
-    opacity: 0.82;
-  }
-  50% {
-    transform: translate3d(var(--petal-drift, 50px), 50vh, 0) rotate(180deg);
-  }
-  88% {
-    opacity: 0.75;
+    transform: translate3d(0, -24px, 0);
   }
   100% {
-    transform: translate3d(calc(var(--petal-drift, 50px) * 1.6), 104vh, 0) rotate(360deg);
-    opacity: 0;
+    transform: translate3d(var(--petal-drift, 50px), 104vh, 0);
   }
 }
 
@@ -276,8 +251,7 @@ html.galgame.gal-cg-mode .ap-right-toggle-btn {
   color: #ff5c97;
   letter-spacing: 1px;
   text-shadow: 0 0 8px rgba(255, 92, 151, 0.75);
-  will-change: transform;
-  animation: gal-heart-pulse 1.8s ease-in-out infinite;
+  animation: gal-heart-pulse 2s steps(4, end) infinite;
 }
 
 @keyframes gal-heart-pulse {
@@ -303,13 +277,12 @@ html.galgame .gal-stage-root .overflow-y-auto {
   user-select: none;
 }
 
-/* Fix GPU bug: separate pure translate3d breathing animation on wrapper from static cached drop-shadow on img */
+/* Drop-shadow is pre-baked into heroine.png / heroine-night.png to avoid runtime SkDropShadowImageFilter 3D shaders */
 .gal-heroine-sprite-wrap {
   position: relative;
   pointer-events: auto;
   cursor: pointer;
-  will-change: transform;
-  animation: gal-heroine-breathe 4.2s ease-in-out infinite;
+  animation: gal-heroine-breathe 4s steps(8, end) infinite;
 }
 
 @keyframes gal-heroine-breathe {
@@ -328,7 +301,6 @@ html.galgame .gal-stage-root .overflow-y-auto {
   max-width: 36vw;
   object-fit: contain;
   object-position: bottom center;
-  filter: drop-shadow(0 10px 24px rgba(18, 4, 28, 0.72));
   transition: transform 0.25s ease;
 }
 
@@ -673,7 +645,7 @@ html.galgame .gal-dialogue-body::before {
   pointer-events: none;
 }
 
-/* Galgame Next-Page Cursor (▼ ♥) */
+/* Galgame Next-Page Cursor (▼ ♥) — only animate on the latest dialogue box */
 html.galgame .gal-next-indicator {
   display: inline-flex !important;
   align-items: center;
@@ -685,8 +657,10 @@ html.galgame .gal-next-indicator {
   font-weight: 800;
   color: #ff69a6;
   pointer-events: none;
-  will-change: transform;
-  animation: gal-cursor-bounce 1.15s ease-in-out infinite;
+}
+
+html.galgame .gal-assistant-turn:last-of-type .gal-next-indicator {
+  animation: gal-cursor-bounce 1s steps(2, end) infinite;
 }
 
 @keyframes gal-cursor-bounce {
