@@ -88,34 +88,98 @@ html.galgame.gal-cg-mode .ap-right-toggle-btn {
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
+  contain: strict;
 }
 
 .gal-bg-layer {
   position: absolute;
-  inset: 0;
+  inset: -2%;
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
-  transition: background-image 0.4s ease;
+  will-change: transform, opacity;
+  transition: opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: gal-kenburns 32s ease-in-out infinite alternate;
+}
+
+.gal-bg-layer.is-active {
+  opacity: 1;
+  animation-play-state: running;
+}
+
+.gal-bg-layer.is-inactive {
+  opacity: 0;
+  animation-play-state: paused;
+}
+
+@keyframes gal-kenburns {
+  0% {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  100% {
+    transform: scale(1.045) translate3d(-0.8%, -0.5%, 0);
+  }
 }
 
 .gal-atmosphere-veil {
   position: absolute;
   inset: 0;
+  transition: background 0.8s ease;
 }
 
 .gal-atmosphere-veil.is-afterschool {
   background:
     radial-gradient(60% 80% at 82% 45%, rgba(255, 182, 193, 0.08) 0%, transparent 70%),
-    linear-gradient(90deg, rgba(20, 8, 28, 0.70) 0%, rgba(24, 10, 34, 0.58) 58%, rgba(18, 7, 26, 0.24) 100%),
+    linear-gradient(90deg, rgba(20, 8, 28, 0.68) 0%, rgba(24, 10, 34, 0.56) 58%, rgba(18, 7, 26, 0.22) 100%),
     linear-gradient(180deg, rgba(16, 6, 24, 0.45) 0%, transparent 18%, transparent 75%, rgba(14, 5, 22, 0.72) 100%);
 }
 
 .gal-atmosphere-veil.is-midnight {
   background:
     radial-gradient(60% 80% at 82% 45%, rgba(216, 112, 255, 0.10) 0%, transparent 70%),
-    linear-gradient(90deg, rgba(15, 6, 26, 0.74) 0%, rgba(20, 8, 32, 0.62) 58%, rgba(14, 5, 24, 0.26) 100%),
+    linear-gradient(90deg, rgba(15, 6, 26, 0.72) 0%, rgba(20, 8, 32, 0.60) 58%, rgba(14, 5, 24, 0.24) 100%),
     linear-gradient(180deg, rgba(12, 4, 20, 0.50) 0%, transparent 18%, transparent 75%, rgba(12, 4, 20, 0.76) 100%);
+}
+
+/* Drifting Sakura Petals — GPU compositor isolated (no 3D plane-splitting or per-petal blur) */
+.gal-petals-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+
+.gal-petal {
+  position: absolute;
+  top: -24px;
+  background: linear-gradient(135deg, #ffe3ef 0%, #ff8ebc 65%, #ff5c97 100%);
+  border-radius: 150% 0 150% 0;
+  opacity: 0.8;
+  will-change: transform, opacity;
+  animation-name: gal-petal-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes gal-petal-fall {
+  0% {
+    transform: translate3d(0, -20px, 0) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.82;
+  }
+  50% {
+    transform: translate3d(var(--petal-drift, 50px), 50vh, 0) rotate(180deg);
+  }
+  88% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate3d(calc(var(--petal-drift, 50px) * 1.6), 104vh, 0) rotate(360deg);
+    opacity: 0;
+  }
 }
 
 /* ── 3. TOP-LEFT GALGAME CALENDAR / ROUTE / AFFECTION HUD ────────────────── */
@@ -208,9 +272,17 @@ html.galgame.gal-cg-mode .ap-right-toggle-btn {
 }
 
 .gal-hearts-icons {
+  display: inline-block;
   color: #ff5c97;
   letter-spacing: 1px;
   text-shadow: 0 0 8px rgba(255, 92, 151, 0.75);
+  will-change: transform;
+  animation: gal-heart-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes gal-heart-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }
 
 /* Push top of chat scroll area down slightly so HUD never overlaps first message */
@@ -231,16 +303,22 @@ html.galgame .gal-stage-root .overflow-y-auto {
   user-select: none;
 }
 
+/* Fix GPU bug: separate pure translate3d breathing animation on wrapper from static cached drop-shadow on img */
 .gal-heroine-sprite-wrap {
   position: relative;
   pointer-events: auto;
   cursor: pointer;
-  transform-origin: bottom center;
-  transition: transform 0.2s ease;
+  will-change: transform;
+  animation: gal-heroine-breathe 4.2s ease-in-out infinite;
 }
 
-.gal-heroine-sprite-wrap:hover {
-  transform: translateY(-3px);
+@keyframes gal-heroine-breathe {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -6px, 0);
+  }
 }
 
 .gal-heroine-img {
@@ -250,6 +328,12 @@ html.galgame .gal-stage-root .overflow-y-auto {
   max-width: 36vw;
   object-fit: contain;
   object-position: bottom center;
+  filter: drop-shadow(0 10px 24px rgba(18, 4, 28, 0.72));
+  transition: transform 0.25s ease;
+}
+
+.gal-heroine-sprite-wrap:hover .gal-heroine-img {
+  transform: translate3d(0, -3px, 0);
 }
 
 /* Speech Bubble cleanly perched above Heroine's head */
@@ -567,7 +651,7 @@ html.galgame .gal-voice-tag {
 html.galgame .gal-dialogue-body {
   position: relative;
   padding: 18px 22px 20px !important;
-  background: linear-gradient(180deg, rgba(31, 13, 42, 0.94) 0%, rgba(19, 7, 27, 0.97) 100%);
+  background: linear-gradient(180deg, rgba(31, 13, 42, 0.88) 0%, rgba(19, 7, 27, 0.93) 100%);
   border: 1.5px solid rgba(255, 148, 194, 0.62);
   outline: 1px solid rgba(255, 224, 163, 0.34);
   outline-offset: -5px;
@@ -589,7 +673,7 @@ html.galgame .gal-dialogue-body::before {
   pointer-events: none;
 }
 
-/* Galgame Next-Page Cursor (▼ ♥) — static by default to save GPU */
+/* Galgame Next-Page Cursor (▼ ♥) */
 html.galgame .gal-next-indicator {
   display: inline-flex !important;
   align-items: center;
@@ -601,6 +685,17 @@ html.galgame .gal-next-indicator {
   font-weight: 800;
   color: #ff69a6;
   pointer-events: none;
+  will-change: transform;
+  animation: gal-cursor-bounce 1.15s ease-in-out infinite;
+}
+
+@keyframes gal-cursor-bounce {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, 3px, 0);
+  }
 }
 
 /* ── 7. USER MESSAGES = GALGAME ROUTE CHOICE BANNER (選択肢) ──────────────── */
