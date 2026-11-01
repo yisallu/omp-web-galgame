@@ -20,15 +20,15 @@ const MIDNIGHT_LINES = [
 ];
 
 const PETALS = [
-  { left: "6%", delay: "0s", dur: "12s", size: 14, drift: "60px" },
-  { left: "16%", delay: "-1.5s", dur: "12s", size: 11, drift: "-45px" },
-  { left: "27%", delay: "-3s", dur: "12s", size: 16, drift: "70px" },
-  { left: "38%", delay: "-4.5s", dur: "12s", size: 12, drift: "-55px" },
-  { left: "49%", delay: "-6s", dur: "12s", size: 15, drift: "50px" },
-  { left: "61%", delay: "-7.5s", dur: "12s", size: 10, drift: "-40px" },
-  { left: "72%", delay: "-9s", dur: "12s", size: 14, drift: "65px" },
-  { left: "83%", delay: "-10.5s", dur: "12s", size: 13, drift: "-50px" },
-  { left: "92%", delay: "-0.75s", dur: "12s", size: 15, drift: "40px" },
+  { left: "6%", delay: "0s", dur: "13s", size: 14, drift: "60px" },
+  { left: "16%", delay: "-2.2s", dur: "15s", size: 11, drift: "-45px" },
+  { left: "27%", delay: "-4.5s", dur: "12s", size: 16, drift: "70px" },
+  { left: "38%", delay: "-1.1s", dur: "16s", size: 12, drift: "-55px" },
+  { left: "49%", delay: "-6.0s", dur: "14s", size: 15, drift: "50px" },
+  { left: "61%", delay: "-3.3s", dur: "13.5s", size: 10, drift: "-40px" },
+  { left: "72%", delay: "-5.2s", dur: "15.5s", size: 14, drift: "65px" },
+  { left: "83%", delay: "-0.7s", dur: "12.5s", size: 13, drift: "-50px" },
+  { left: "92%", delay: "-3.9s", dur: "14.5s", size: 15, drift: "40px" },
 ];
 
 export function GalgameStage() {
@@ -114,7 +114,7 @@ export function GalgameStage() {
 
   return (
     <>
-      {/* Full-viewport Visual Novel Background CG + Atmosphere + Sakura Petals */}
+      {/* Full-viewport Visual Novel Background CG + Atmosphere */}
       <div className="gal-stage-backdrop" aria-hidden="true">
         <div
           className={`gal-bg-layer ${scene === "afterschool" ? "is-active" : "is-inactive"}`}
@@ -129,24 +129,24 @@ export function GalgameStage() {
           }}
         />
         <div className={`gal-atmosphere-veil ${scene === "midnight" ? "is-midnight" : "is-afterschool"}`} />
+      </div>
 
-        {/* Drifting Sakura Petals */}
-        <div className="gal-petals-container">
-          {PETALS.map((p, idx) => (
-            <span
-              key={idx}
-              className="gal-petal"
-              style={{
-                left: p.left,
-                animationDelay: p.delay,
-                animationDuration: p.dur,
-                width: p.size,
-                height: p.size * 0.72,
-                "--petal-drift": p.drift,
-              } as React.CSSProperties}
-            />
-          ))}
-        </div>
+      {/* Drifting Sakura Petals — placed on top compositing layer (pointer-events: none) so ChatWindow below is never forced into overlap layer promotion */}
+      <div className="gal-petals-container" aria-hidden="true">
+        {PETALS.map((p, idx) => (
+          <span
+            key={idx}
+            className="gal-petal"
+            style={{
+              left: p.left,
+              animationDelay: p.delay,
+              animationDuration: p.dur,
+              width: p.size,
+              height: p.size * 0.72,
+              "--petal-drift": p.drift,
+            } as React.CSSProperties}
+          />
+        ))}
       </div>
 
       {/* Top-Left Galgame Date / Route / Affection HUD */}
