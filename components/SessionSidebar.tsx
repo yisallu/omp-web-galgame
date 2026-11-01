@@ -112,7 +112,7 @@ interface WorktreeState {
 }
 
 const UNREAD_SESSIONS_STORAGE_KEY = "omp-web:unread-session-ids";
-const RUNNING_SESSIONS_POLL_MS = 2500;
+const RUNNING_SESSIONS_POLL_MS = 5000;
 
 function loadUnreadSessionIds(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -536,7 +536,13 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         const data = await res.json() as { runningSessionIds?: string[] };
         if (stopped || controller !== current) return;
         runningPollAuthoritativeRef.current = true;
-        setRunningSessionIds(new Set(data.runningSessionIds ?? []));
+        const nextIds = data.runningSessionIds ?? [];
+        setRunningSessionIds((prev) => {
+          if (prev.size === nextIds.length && nextIds.every((id) => prev.has(id))) {
+            return prev;
+          }
+          return new Set(nextIds);
+        });
       } catch {
         // Keep the last known state; the next visible-tab poll retries.
       } finally {

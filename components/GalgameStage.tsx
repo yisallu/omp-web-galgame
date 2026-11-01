@@ -19,18 +19,6 @@ const MIDNIGHT_LINES = [
   "「先輩の声が聞きたくて眠れなかったんです…もう少しだけ、そばにいてください♡」",
 ];
 
-const PETALS = [
-  { left: "6%", delay: "0s", dur: "13s", size: 14, drift: "60px" },
-  { left: "16%", delay: "2.2s", dur: "15s", size: 11, drift: "-45px" },
-  { left: "27%", delay: "4.5s", dur: "12s", size: 16, drift: "70px" },
-  { left: "38%", delay: "1.1s", dur: "16s", size: 12, drift: "-55px" },
-  { left: "49%", delay: "6.0s", dur: "14s", size: 15, drift: "50px" },
-  { left: "61%", delay: "3.3s", dur: "13.5s", size: 10, drift: "-40px" },
-  { left: "72%", delay: "5.2s", dur: "15.5s", size: 14, drift: "65px" },
-  { left: "83%", delay: "0.7s", dur: "12.5s", size: 13, drift: "-50px" },
-  { left: "92%", delay: "3.9s", dur: "14.5s", size: 15, drift: "40px" },
-];
-
 export function GalgameStage() {
   const { isGalgame } = useTheme();
   const [scene, setScene] = useState<GalScene>("afterschool");
@@ -119,36 +107,12 @@ export function GalgameStage() {
         <div
           className="gal-bg-layer"
           style={{
-            backgroundImage: "url('/galgame/bg-sakura.jpg')",
-            opacity: scene === "afterschool" ? 1 : 0,
-          }}
-        />
-        <div
-          className="gal-bg-layer"
-          style={{
-            backgroundImage: "url('/galgame/bg-night.jpg')",
-            opacity: scene === "midnight" ? 1 : 0,
+            backgroundImage: scene === "afterschool"
+              ? "url('/galgame/bg-sakura.jpg')"
+              : "url('/galgame/bg-night.jpg')",
           }}
         />
         <div className={`gal-atmosphere-veil ${scene === "midnight" ? "is-midnight" : "is-afterschool"}`} />
-
-        {/* Drifting Sakura Petals */}
-        <div className="gal-petals-container">
-          {PETALS.map((p, idx) => (
-            <span
-              key={idx}
-              className="gal-petal"
-              style={{
-                left: p.left,
-                animationDelay: p.delay,
-                animationDuration: p.dur,
-                width: p.size,
-                height: p.size * 0.72,
-                "--petal-drift": p.drift,
-              } as React.CSSProperties}
-            />
-          ))}
-        </div>
       </div>
 
       {/* Top-Left Galgame Date / Route / Affection HUD */}

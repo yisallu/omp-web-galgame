@@ -88,6 +88,17 @@ function normalizeQueuedMessages(q?: { steering?: string[]; followUp?: string[] 
   return { steering: q?.steering ?? [], followUp: q?.followUp ?? [] };
 }
 
+function areQueuedMessagesEqual(a: QueuedMessages, b: QueuedMessages): boolean {
+  if (a.steering.length !== b.steering.length || a.followUp.length !== b.followUp.length) return false;
+  for (let i = 0; i < a.steering.length; i++) {
+    if (a.steering[i] !== b.steering[i]) return false;
+  }
+  for (let i = 0; i < a.followUp.length; i++) {
+    if (a.followUp[i] !== b.followUp[i]) return false;
+  }
+  return true;
+}
+
 type ExtensionUiDialogRequest = Extract<ExtensionUiRequest, { method: "select" | "confirm" | "input" | "editor" }>;
 type ExtensionUiCustomRequest = Extract<ExtensionUiRequest, { method: "custom" }>;
 export type NoticeType = "info" | "success" | "warning" | "error";
@@ -1042,8 +1053,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       // flight) — everything in it is stale, drop it.
       if (promptRunIdRef.current !== runId) return;
       const state = data.state;
-      setIsCompacting(state?.isCompacting ?? false);
-      setQueuedMessages(normalizeQueuedMessages(state?.queuedMessages));
+      const nextCompacting = state?.isCompacting ?? false;
+      setIsCompacting((prev) => (prev === nextCompacting ? prev : nextCompacting));
+      const nextQueued = normalizeQueuedMessages(state?.queuedMessages);
+      setQueuedMessages((prev) => (areQueuedMessagesEqual(prev, nextQueued) ? prev : nextQueued));
       const busy = Boolean(data.running && state
         && (state.isStreaming || state.isPromptRunning || state.isCompacting));
 
@@ -1097,7 +1110,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     const onVisible = () => {
       if (document.visibilityState === "visible") reconcile();
     };
-    const interval = setInterval(reconcile, AGENT_STATE_RECONCILE_MS);
+    const intervalMs = agentRunning ? AGENT_STATE_RECONCILE_MS : 15_000;
+    const interval = setInterval(reconcile, intervalMs);
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("online", reconcile);
     return () => {
