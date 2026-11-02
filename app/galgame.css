@@ -889,3 +889,26 @@ html.galgame .gal-placeholder-card {
   border: 2px solid var(--gal-gold) !important;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 30px rgba(255, 92, 151, 0.32) !important;
 }
+
+/* ── 13. ECO (省電) MODE — freeze ambient animation loops to cut GPU load ── */
+html.galgame.gal-eco .gal-petal,
+html.galgame.gal-eco .gal-heroine-sprite-wrap,
+html.galgame.gal-eco .gal-hearts-icons {
+  animation-play-state: paused !important;
+  will-change: auto !important;
+}
+
+html.galgame.gal-eco .gal-dialogue-body:hover .gal-next-indicator {
+  animation: none !important;
+}
+
+html.galgame.gal-eco .gal-bg-layer {
+  transition: none !important;
+}
+
+/* Switched-on quick-bar buttons (立ち絵 / 省電) */
+html.galgame .gal-qbtn.is-on {
+  background: linear-gradient(135deg, rgba(255, 196, 128, 0.30) 0%, rgba(206, 122, 52, 0.30) 100%);
+  border-color: var(--gal-gold);
+  box-shadow: 0 0 12px rgba(255, 200, 120, 0.42);
+}

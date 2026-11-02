@@ -39,6 +39,7 @@ export function GalgameStage() {
   const [lineIdx, setLineIdx] = useState(0);
   const [showBubble, setShowBubble] = useState(true);
   const [heartBurst, setHeartBurst] = useState(0);
+  const [eco, setEco] = useState(false);
 
   useEffect(() => {
     try {
@@ -49,6 +50,8 @@ export function GalgameStage() {
       }
       const savedChara = localStorage.getItem("omp-gal-chara");
       if (savedChara === "0") setShowChara(false);
+      const savedEco = localStorage.getItem("omp-gal-eco");
+      if (savedEco === "1") setEco(true);
     } catch {
       // ignore
     }
@@ -74,6 +77,16 @@ export function GalgameStage() {
     return () => cl.remove("gal-chara-visible");
   }, [isGalgame, showChara]);
 
+  useEffect(() => {
+    const cl = document.documentElement.classList;
+    if (isGalgame && eco) {
+      cl.add("gal-eco");
+    } else {
+      cl.remove("gal-eco");
+    }
+    return () => cl.remove("gal-eco");
+  }, [isGalgame, eco]);
+
   const toggleScene = useCallback(() => {
     setScene((prev) => {
       const next: GalScene = prev === "afterschool" ? "midnight" : "afterschool";
@@ -87,6 +100,18 @@ export function GalgameStage() {
     setLineIdx(0);
     setShowBubble(true);
     setHeartBurst((n) => n + 1);
+  }, []);
+
+  const toggleEco = useCallback(() => {
+    setEco((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("omp-gal-eco", next ? "1" : "0");
+      } catch {
+        // ignore
+      }
+      return next;
+    });
   }, []);
 
   const toggleChara = useCallback(() => {
@@ -246,6 +271,14 @@ export function GalgameStage() {
           title="ヒロイン立ち絵の表示 / 非表示"
         >
           <span>👗 立ち絵: {showChara ? "ON" : "OFF"}</span>
+        </button>
+        <button
+          type="button"
+          className={`gal-qbtn ${eco ? "is-on" : ""}`}
+          onClick={toggleEco}
+          title="省電モード: 桜と立ち絵のアニメを停止して GPU 負荷を下げる"
+        >
+          <span>🔋 省電: {eco ? "ON" : "OFF"}</span>
         </button>
         <button
           type="button"
