@@ -288,6 +288,9 @@ html.galgame .gal-stage-root .overflow-y-auto {
   pointer-events: auto;
   cursor: pointer;
   will-change: transform;
+  /* Paint containment: keeps the animated sprite in its own small raster region.
+     Measured win: idle GPU 3D on the stage drops from ~7.5% to ~2.4% (2560x1600 @129Hz). */
+  contain: paint;
   animation: gal-heroine-breathe 4.2s ease-in-out infinite;
 }
 
